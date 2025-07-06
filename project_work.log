@@ -1,10 +1,46 @@
-Hoàn thành task 10/10 vào ngày 2025-06-30
-Hoàn thành task 9/10 vào ngày 2025-06-29
-Hoàn thành task 8/10 vào ngày 2025-06-28
-Hoàn thành task 7/10 vào ngày 2025-06-27
-Hoàn thành task 6/10 vào ngày 2025-06-26
-Hoàn thành task 5/10 vào ngày 2025-06-25
-Hoàn thành task 4/10 vào ngày 2025-06-24
-Hoàn thành task 3/10 vào ngày 2025-06-23
-Hoàn thành task 2/10 vào ngày 2025-06-22
-Hoàn thành task 1/10 vào ngày 2025-06-21
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+// Import thư viện TFHE từ Zama
+import "fhevm/lib/TFHE.sol";
+
+contract GatedContent {
+    address public owner;
+
+    // Ngưỡng số dư yêu cầu, được lưu trữ dưới dạng mã hóa (euint32)
+    // euint32 = encrypted unsigned 32-bit integer
+    euint32 private requiredBalance;
+
+    event AccessChecked(bool isGranted);
+
+    constructor(bytes memory encryptedRequiredBalance) {
+        owner = msg.sender;
+        // Khởi tạo ngưỡng với giá trị đã được mã hóa từ bên ngoài
+        requiredBalance = TFHE.asEuint32(encryptedRequiredBalance);
+    }
+
+    /**
+     * @dev Hàm này cho phép người dùng kiểm tra xem họ có đủ điều kiện truy cập không.
+     * @param encryptedUserBalance Số dư của người dùng, đã được mã hóa ở phía client.
+     * @return Một giá trị boolean đã được mã hóa (ebool), true nếu đủ điều kiện, false nếu không.
+     */
+    function checkAccess(bytes calldata encryptedUserBalance) public view returns (ebool) {
+        // Chuyển đổi dữ liệu calldata thành kiểu euint32
+        euint32 userBalance = TFHE.asEuint32(encryptedUserBalance);
+
+        // Phép so sánh được thực hiện trên dữ liệu đã mã hóa!
+        // TFHE.gt(a, b) sẽ trả về E(true) nếu a > b, ngược lại trả về E(false).
+        // Chúng ta cũng có thể dùng TFHE.ge(a, b) cho "lớn hơn hoặc bằng".
+        ebool isSufficient = TFHE.ge(userBalance, requiredBalance);
+
+        return isSufficient;
+    }
+
+    /**
+     * @dev Hàm này chỉ để minh họa. Trong thực tế, bạn sẽ không bao giờ để lộ ngưỡng.
+     * Nó trả về ngưỡng đã được mã hóa.
+     */
+    function getEncryptedRequiredBalance() public view returns (bytes memory) {
+        return TFHE.serialize(requiredBalance);
+    }
+}
